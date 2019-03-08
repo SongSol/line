@@ -1,49 +1,35 @@
 'use strict';
 
-const line = require('@line/bot-sdk');
 const express = require('express');
+const line = require('@line/bot-sdk');
+const PORT = process.env.PORT || 3000;
 
-// create LINE SDK config from env variables
 const config = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET,
+    channelSecret: 'f1d91cb80ea6e9a410f079f3d6b57d57',
+    channelAccessToken: 'RQ19pMFLu2loB6isOZCQmny4dFzBejVs41WP59vMV+Wmc44iIVvjxePFSQQ1OD+RurEibg+C4kQXpImShaf/7PEFKvYIxinT0Z5bxllU41ATHuWPLjuWIOOTMkDq+WciuGbBhiOWCqK24Oy1nd1zAgdB04t89/1O/w1cDnyilFU='
 };
 
-// create LINE SDK client
-const client = new line.Client(config);
-
-// create Express app
-// about Express itself: https://expressjs.com/
 const app = express();
-
-// register a webhook handler with middleware
-// about the middleware, please refer to doc
-app.post('/callback', line.middleware(config), (req, res) => {
-  Promise
-    .all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(err);
-      res.status(500).end();
-    });
+app.use(express.static(__dirname + '/public'));
+app.post('/webhook', line.middleware(config), (req, res) => {
+    console.log(req.body.events);
+    Promise
+      .all(req.body.events.map(handleEvent))
+      .then((result) => res.json(result));
 });
 
-// event handler
+const client = new line.Client(config);
+
 function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') {
-    // ignore non-text-message event
     return Promise.resolve(null);
   }
 
-  // create a echoing text message
-  const echo = { type: 'text', text: event.message.text };
-
-  // use reply API
-  return client.replyMessage(event.replyToken, echo);
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: event.message.text //実際に返信の言葉を入れる箇所
+  });
 }
 
-// listen on port
-const port = process.env.PORT || 8000;
-app.listen(port, () => {
-  console.log(`listening on ${port}`);
-});
+app.listen(PORT);
+console.log(`Server running at ${PORT}`);
