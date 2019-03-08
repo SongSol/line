@@ -4,39 +4,43 @@ const line = require('@line/bot-sdk');
 const express = require('express');
 
 // create LINE SDK config from env variables
-const LINE_CHANNEL_ACCESS_TOKEN = 'DPNzw0zlGlV/n+sXCqVEuw5tC89xJ4cjwiGz7aBRVaCYW4pYMKfd3MeWhb3F0If3q5uL3gLekqX55l+5aYEG7d16wrvNbz9CnYarKFknT+B9Cu2/pui4GyXxeaP9Pwd0XcqmzyqteTDbHxLIrFcw+QdB04t89/1O/w1cDnyilFU=';
+const config = {
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET,
+};
 
-var express = require('express');
-var bodyParser = require('body-parser');
-var request = require('request');
-var app = express();
+// create LINE SDK client
+const client = new line.Client(config);
 
-app.post('/webhook', function(req, res, next){
-    res.status(200).end();
-    for (var event of req.body.events){
-        if (event.type == 'message' && event.message.text == 'ハロー'){
-            var headers = {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + LINE_CHANNEL_ACCESS_TOKEN
-            }
-            var body = {
-                replyToken: event.replyToken,
-                messages: [{
-                    type: 'text',
-                    text: 'こんにちは'
-                }]
-            }
-            var url = 'https://api.line.me/v2/bot/message/reply';
-            request({
-                url: url,
-                method: 'POST',
-                headers: headers,
-                body: body,
-                json: true
-            });
-        }
-    }
+// create Express app
+// about Express itself: https://expressjs.com/
+const app = express();
+
+// register a webhook handler with middleware
+// about the middleware, please refer to doc
+app.post('/callback', line.middleware(config), (req, res) => {
+  Promise
+    .all(req.body.events.map(handleEvent))
+    .then((result) => res.json(result))
+    .catch((err) => {
+      console.error(err);
+      res.status(500).end();
+    });
 });
+
+// event handler
+function handleEvent(event) {
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    // ignore non-text-message event
+    return Promise.resolve(null);
+  }
+
+  // create a echoing text message
+  const echo = { type: 'text', text: event.message.text };
+
+  // use reply API
+  return client.replyMessage(event.replyToken, echo);
+}
 
 // listen on port
 const port = process.env.PORT || 8000;
